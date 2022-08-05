@@ -12,6 +12,8 @@ import cc.ysong.assistant.databinding.FragmentFirstBinding
 import cc.ysong.assistant.nas.NasAppInfo
 import cc.ysong.assistant.nas.NasAppListAdapter
 import cc.ysong.assistant.nas.NasInstalledAppInfo
+import cc.ysong.assistant.utils.Downloader
+import cc.ysong.assistant.utils.Downloader.OnDownloadListener
 import cc.ysong.assistant.utils.Utils
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -20,6 +22,7 @@ import org.jsoup.nodes.Element
 
 class NasFragment : Fragment() {
 
+    private val sTopLevel = "https://archive.synology.com"
     private var _binding: FragmentFirstBinding? = null
     private val binding get() = _binding!!
 
@@ -44,8 +47,11 @@ class NasFragment : Fragment() {
 
         _appListAdapter = activity?.let { NasAppListAdapter(it) }
         binding.appList.adapter = appListAdapter
-        binding.appList.onItemClickListener = AdapterView.OnItemClickListener { adapterView: AdapterView<*>, view1: View, i: Int, l: Long ->
-
+        binding.appList.onItemClickListener = AdapterView.OnItemClickListener { adapterView: AdapterView<*>, view1: View, pos: Int, l: Long ->
+            val info = appListAdapter.getItem(pos)
+            if (info != null) {
+                loadAppDetail(info)
+            }
         }
 
 //        binding.buttonFirst.setOnClickListener {
@@ -66,6 +72,36 @@ class NasFragment : Fragment() {
         _binding = null
     }
 
+    private fun loadAppDetail(info: NasAppInfo) {
+        Utils.executor.execute {
+
+            val doc: Document = Jsoup.connect(info.url).get()
+            val appHtml = doc.select("table > tbody > tr > th > a")
+            val hrefs = appHtml.eachAttr("href")
+            Log.i("xxx", "" + hrefs)
+
+            for (e in appHtml) {
+                val name = e.text()
+                val href = e.attr("href")
+
+                Utils.downloader.download(href, "Download", object: OnDownloadListener {
+                    override fun onDownloadSuccess() {
+                        Log.i("download", "success")
+                    }
+
+                    override fun onDownloading(progress: Int) {
+                        Log.i("download", "progress: $progress")
+                    }
+
+                    override fun onDownloadFailed() {
+                        Log.i("download", "fail")
+                    }
+                })
+                break
+            }
+        }
+    }
+
     private fun loadData() {
         Utils.executor.execute {
             val topLevel = "https://archive.synology.com"
@@ -78,7 +114,7 @@ class NasFragment : Fragment() {
                     continue
                 }
 
-                addNasApp(e, topLevel, name)
+                addNasApp(e, name)
             }
 
             for (e in appHtml) {
@@ -87,21 +123,21 @@ class NasFragment : Fragment() {
                     continue
                 }
 
-                addNasApp(e, topLevel, name)
+                addNasApp(e, name)
             }
         }
     }
 
-    private fun addNasApp(e: Element, topLevelUrl: String, name: String) {
+    private fun addNasApp(e: Element, name: String) {
         val href = e.attr("href")
 
-        Log.i("data", "top level href: ${topLevelUrl + href}  text: $name")
+        Log.i("data", "top level href: ${sTopLevel + href}  text: $name")
 
-        val eDoc: Document = Jsoup.connect(topLevelUrl + href).get()
+        val eDoc: Document = Jsoup.connect(sTopLevel + href).get()
         val lastVer = eDoc.select("table > tbody > tr:nth-child(2) > th > a")
         val downUrl = lastVer.attr("href")
         val version = lastVer.text()
-        val url = topLevelUrl + downUrl
+        val url = sTopLevel + downUrl
         Log.i("data", "version: $version downUrl: $url")
 
         activity?.runOnUiThread {

@@ -28,8 +28,8 @@ class Downloader {
                 // 储存下载文件的目录
                 val savePath = isExistDir(saveDir)
                 try {
-                    `is` = response.body()?.byteStream()
-                    val total: Long = response.body()?.contentLength()!!
+                    `is` = response.body?.byteStream()
+                    val total: Long = response.body?.contentLength()!!
                     val file = File(savePath, getNameFromUrl(url))
                     fos = FileOutputStream(file)
                     var sum: Long = 0

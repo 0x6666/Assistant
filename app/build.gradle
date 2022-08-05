@@ -44,5 +44,5 @@ dependencies {
     implementation 'androidx.navigation:navigation-ui-ktx:2.5.1'
 
     implementation "org.jsoup:jsoup:1.15.2"
-    implementation 'com.squareup.okhttp3:okhttp:3.14.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.0'
 }
