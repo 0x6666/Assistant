@@ -18,27 +18,31 @@ data class NasInstalledAppInfo(val appName: String,
 
 data class NasAppApkUrl(val name: String, val url: String)
 
-class NasAppInfo(val name: String, val ver: String, val apkListUrl: String, var progress: Int) {
+class NasAppInfo(var name: String, var ver: String, var apkListUrl: String, var progress: Int) {
     var apkUrls: List<NasAppApkUrl>? = null
 }
 
 object NasAppMgr {
 
+    private var nasAppNameAll = mutableListOf<String>()
+    private var nasAppInfoMap = mutableMapOf<String, NasAppInfo>()
+
     private var installedPackage = mutableMapOf<String, NasInstalledAppInfo>()
-    private var nasAppInfoAll = mutableListOf<NasAppInfo>()
+
+
     private var listener: UpdateListener? = null
     private const val topLevel = "https://archive.synology.com"
     private val nasAppLoading = AtomicBoolean(false)
 
     fun onlineAppCount(): Int {
-        return nasAppInfoAll.size;
+        return nasAppNameAll.size;
     }
 
     fun getNasApp(idx: Int): NasAppInfo? {
-        return if (idx >= nasAppInfoAll.size) {
+        return if (idx >= nasAppNameAll.size) {
             null
         } else {
-            nasAppInfoAll[idx]
+            nasAppInfoMap[nasAppNameAll[idx]]
         }
     }
 
@@ -109,8 +113,6 @@ object NasAppMgr {
     private fun addNasApp(e: Element, name: String) {
         val href = e.attr("href")
 
-        Log.i("data", "top level href: ${topLevel + href}  text: $name")
-
         val eDoc: Document = Jsoup.connect(topLevel + href).get()
         val lastVer = eDoc.select("table > tbody > tr:nth-child(2) > th > a")
         val downUrl = lastVer.attr("href")
@@ -118,7 +120,13 @@ object NasAppMgr {
         val url = topLevel + downUrl
         Log.i("data", "version: $version downUrl: $url")
 
-        nasAppInfoAll.add(NasAppInfo(name, version, url, 0))
+        if (nasAppInfoMap.containsKey(name)) {
+            nasAppInfoMap[name]?.ver = version
+            nasAppInfoMap[name]?.apkListUrl = url
+        } else {
+            nasAppInfoMap[name] = NasAppInfo(name, version, url, 0)
+            nasAppNameAll.add(name)
+        }
         listener?.onUpdate()
     }
 
