@@ -11,7 +11,7 @@ import java.io.InputStream
 class Downloader {
     private val okHttpClient: OkHttpClient = OkHttpClient()
 
-    fun download(url: String, saveDir: String, listener: OnDownloadListener) {
+    fun download(url: String, saveDir: String, name: String, listener: OnDownloadListener) {
         val request: Request = Request.Builder().url(url).build()
         okHttpClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -30,7 +30,7 @@ class Downloader {
                 try {
                     `is` = response.body?.byteStream()
                     val total: Long = response.body?.contentLength()!!
-                    val file = File(savePath, getNameFromUrl(url))
+                    val file = File(savePath, name.ifEmpty { getNameFromUrl(url) })
                     fos = FileOutputStream(file)
                     var sum: Long = 0
                     if (`is` != null) {
@@ -44,7 +44,7 @@ class Downloader {
                     }
                     fos.flush()
                     // 下载完成
-                    listener.onDownloadSuccess()
+                    listener.onDownloadSuccess(file.absolutePath)
                 } catch (e: Exception) {
                     listener.onDownloadFailed()
                 } finally {
@@ -80,7 +80,7 @@ class Downloader {
     }
 
     interface OnDownloadListener {
-        fun onDownloadSuccess()
+        fun onDownloadSuccess(path: String)
 
         fun onDownloading(progress: Int)
 

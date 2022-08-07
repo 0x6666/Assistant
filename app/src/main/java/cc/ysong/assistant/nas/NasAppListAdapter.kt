@@ -1,57 +1,36 @@
 package cc.ysong.assistant.nas
 
-import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
+import android.widget.BaseAdapter
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import cc.ysong.assistant.R
+import cc.ysong.assistant.utils.Utils
 
 
-class NasAppListAdapter(context: Context) :
-    ArrayAdapter<NasAppInfo>(context, 0) {
+class NasAppViewHolder {
+    var appName: TextView? = null
+    var appLastVer: TextView? = null
+    var appIcon: ImageView? = null
+    var appInstallVer: TextView? = null
+    var progressBar: ProgressBar? = null
+}
 
-    companion object {
-        private var installedPackage = mutableMapOf<String, NasInstalledAppInfo>()
+class NasAppListAdapter : BaseAdapter() {
 
-        fun updateInstallApps(installedPkg: List<NasInstalledAppInfo>) {
-            for (x in installedPkg) {
-                installedPackage[x.pkgName] = x
-            }
-        }
+    override fun getCount(): Int {
+        return NasAppMgr.onlineAppCount()
+    }
 
-        fun getInstalledApp(name: String) : NasInstalledAppInfo? {
+    override fun getItem(idx: Int): NasAppInfo? {
+        return NasAppMgr.getNasApp(idx)!!
+    }
 
-            var pkgName = ""
-            when (name) {
-                "Android-Drive" -> {
-                    pkgName = "com.synology.dsdrive"
-                }
-                "Android-DSmail" -> {
-                    pkgName = "com.synology.dsmail.china"
-                }
-                "Android-ActiveInsight" -> {
-                    pkgName = "com.synology.activeinsight.china"
-                }
-                "Android-DSfinder" -> {
-                    pkgName = "com.synology.DSfinder"
-                }
-                " Android-DSdownload" -> {
-                    pkgName = "com.synology.DSdownload"
-                }
-                "Android-Photos" -> {
-                    pkgName = "com.synology.projectkailash.cn"
-                }
-            }
-
-            if (pkgName == "") {
-                return null
-            }
-
-            return installedPackage[pkgName]
-        }
+    override fun getItemId(p0: Int): Long {
+        return 0
     }
 
     override fun getView(position: Int, convertView_: View?, parent: ViewGroup): View {
@@ -59,28 +38,38 @@ class NasAppListAdapter(context: Context) :
         var convertView = convertView_
         val appInfo: NasAppInfo? = getItem(position)
 
+        var holder_: NasAppViewHolder? = null
         if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.app_list_item, parent, false)
+            convertView = LayoutInflater.from(Utils.context).inflate(R.layout.app_list_item, parent, false)
+            holder_ = NasAppViewHolder()
+            holder_.appName = convertView!!.findViewById(R.id.nas_app_name)
+            holder_.appLastVer = convertView.findViewById(R.id.nas_app_last_version)
+            holder_.appIcon = convertView.findViewById(R.id.nas_app_icon)
+            holder_.appInstallVer = convertView.findViewById(R.id.nas_app_installed_version)
+            holder_.progressBar = convertView.findViewById(R.id.nas_app_down_progress)
+            convertView.tag = holder_
+        } else {
+            holder_ = convertView.tag as NasAppViewHolder?
         }
-
-        val appName = convertView!!.findViewById<TextView>(R.id.nas_app_name)
-//        val appUrl = convertView.findViewById<TextView>(R.id.nas_app_url)
-        val appLastVer = convertView.findViewById<TextView>(R.id.nas_app_last_version)
-        val appIcon = convertView.findViewById<ImageView>(R.id.nas_app_icon)
-        val appInstallVer = convertView.findViewById<TextView>(R.id.nas_app_installed_version)
+        val holder = holder_!!
 
         if (appInfo != null) {
-            val installedInfo = getInstalledApp(appInfo.name)
+            val installedInfo = NasAppMgr.getInstalledApp(appInfo.name)
             if (installedInfo != null) {
-                appIcon.setImageDrawable(installedInfo.appIcon)
-                (installedInfo.verName + "-" + installedInfo.verCode.toString()).also { appInstallVer.text = it }
+                holder.appIcon?.setImageDrawable(installedInfo.appIcon)
+                holder.appInstallVer?.text = String.format("%s-%03d", installedInfo.verName, installedInfo.verCode)
             } else {
-                appIcon.setImageResource(R.mipmap.ic_launcher)
-                appInstallVer.text = "not installed"
+                holder.appIcon?.setImageResource(R.mipmap.ic_launcher)
+                holder.appInstallVer?.text = "not installed"
             }
-            appName.text = appInfo.name
-            appLastVer.text = appInfo.ver
-//            appUrl.text = appInfo.url
+            holder.progressBar?.progress = appInfo.progress
+            if (appInfo.progress > 0) {
+                holder.progressBar?.visibility = View.VISIBLE
+            } else {
+                holder.progressBar?.visibility = View.GONE
+            }
+            holder.appName?.text = appInfo.name
+            holder.appLastVer?.text = appInfo.ver
         }
 
         return convertView

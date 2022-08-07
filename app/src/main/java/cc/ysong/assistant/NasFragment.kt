@@ -1,28 +1,25 @@
 package cc.ysong.assistant
 
-import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
 import cc.ysong.assistant.databinding.FragmentFirstBinding
+import cc.ysong.assistant.nas.NasAppApkUrl
 import cc.ysong.assistant.nas.NasAppInfo
 import cc.ysong.assistant.nas.NasAppListAdapter
-import cc.ysong.assistant.nas.NasInstalledAppInfo
+import cc.ysong.assistant.nas.NasAppMgr
 import cc.ysong.assistant.utils.Downloader
-import cc.ysong.assistant.utils.Downloader.OnDownloadListener
 import cc.ysong.assistant.utils.Utils
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import org.jsoup.nodes.Element
+import java.io.File
 
 
 class NasFragment : Fragment() {
 
-    private val sTopLevel = "https://archive.synology.com"
     private var _binding: FragmentFirstBinding? = null
     private val binding get() = _binding!!
 
@@ -34,144 +31,124 @@ class NasFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
 
-        loadData()
-        getAllInstalledPkg()
+        NasAppMgr.updateAllInstalledNasApp()
+        NasAppMgr.loadNasAppList()
 
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         return binding.root
+    }
 
+    private val mNasAppUpdateListener = object: NasAppMgr.UpdateListener {
+        override fun onUpdate() {
+            activity?.runOnUiThread {
+                _appListAdapter?.notifyDataSetChanged()
+            }
+        }
+
+        override fun onLoadingNasAppList(loading: Boolean) {
+            showProgress(loading)
+        }
+
+        override fun onLoadingNasAppApkUrls(loading: Boolean) {
+            showProgress(loading)
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        _appListAdapter = activity?.let { NasAppListAdapter(it) }
+        _appListAdapter = NasAppListAdapter()
         binding.appList.adapter = appListAdapter
-        binding.appList.onItemClickListener = AdapterView.OnItemClickListener { adapterView: AdapterView<*>, view1: View, pos: Int, l: Long ->
-            val info = appListAdapter.getItem(pos)
-            if (info != null) {
-                loadAppDetail(info)
-            }
+        binding.appList.onItemClickListener = AdapterView.OnItemClickListener { _: AdapterView<*>, view1: View, pos: Int, _: Long ->
+            NasAppMgr.getAppApkUrls(pos, fun(apks: List<NasAppApkUrl>?) {
+                if (apks != null) {
+                    if (apks.isNotEmpty()) {
+                        val info = NasAppMgr.getNasApp(pos)
+                        if (info != null) {
+                            activity?.runOnUiThread {
+                                showAppSel(info, apks, view1)
+                            }
+                        }
+                    }
+                }
+            })
         }
+
+        showProgress(NasAppMgr.isNasAppListLoading())
+        NasAppMgr.setUpdateListener(mNasAppUpdateListener)
 
 //        binding.buttonFirst.setOnClickListener {
 //            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
 //        }
     }
 
-    private fun updateData(info: NasAppInfo) {
-        appListAdapter.add(info)
-    }
-
-    private fun updateInstalledAppInfo(installedPkg: List<NasInstalledAppInfo>) {
-        NasAppListAdapter.updateInstallApps(installedPkg)
-    }
-
     override fun onDestroyView() {
+        NasAppMgr.setUpdateListener(null)
         super.onDestroyView()
         _binding = null
     }
 
-    private fun loadAppDetail(info: NasAppInfo) {
-        Utils.executor.execute {
+    private fun showAppSel(info: NasAppInfo, apps: List<NasAppApkUrl>, view: View) {
 
-            val doc: Document = Jsoup.connect(info.url).get()
-            val appHtml = doc.select("table > tbody > tr > th > a")
-            val hrefs = appHtml.eachAttr("href")
-            Log.i("xxx", "" + hrefs)
-
-            for (e in appHtml) {
-                val name = e.text()
-                val href = e.attr("href")
-
-                Utils.downloader.download(href, "Download", object: OnDownloadListener {
-                    override fun onDownloadSuccess() {
-                        Log.i("download", "success")
-                    }
-
-                    override fun onDownloading(progress: Int) {
-                        Log.i("download", "progress: $progress")
-                    }
-
-                    override fun onDownloadFailed() {
-                        Log.i("download", "fail")
-                    }
-                })
-                break
+        if (apps.size > 1) {
+            val popup = PopupMenu(requireActivity(), view)
+            for (a in apps) {
+                var tmp = a.name
+                if (tmp.length > 20) {
+                    tmp = "..." + tmp.substring(tmp.length - 20)
+                }
+                popup.menu.add(tmp)
             }
+            popup.show()
+            popup.setOnMenuItemClickListener { item ->
+                val tmpInfo = apps[item.order]
+                downApk(tmpInfo.url, info)
+                true
+            }
+        } else {
+            val tmpInfo = apps[0]
+            downApk(tmpInfo.url, info)
         }
     }
 
-    private fun loadData() {
-        Utils.executor.execute {
-            val topLevel = "https://archive.synology.com"
-            val doc: Document = Jsoup.connect("$topLevel/download/Mobile").get()
-            val appHtml = doc.select("table > tbody > tr > th > a")
-
-            for (e in appHtml) {
-                val name = e.text()
-                if (NasAppListAdapter.getInstalledApp(name) == null) {
-                    continue
-                }
-
-                addNasApp(e, name)
+    private fun downApk(url: String, info: NasAppInfo) {
+        val md5 = Utils.md5(url)
+        val f = File(Utils.getFilesDir(), "$md5.apk")
+        if (f.exists()) {
+            info.progress = 100
+            activity?.runOnUiThread {
+                appListAdapter.notifyDataSetChanged()
+                Utils.installApk(f.absolutePath)
             }
-
-            for (e in appHtml) {
-                val name = e.text()
-                if (NasAppListAdapter.getInstalledApp(name) != null) {
-                    continue
-                }
-
-                addNasApp(e, name)
-            }
+            return
         }
+
+        Utils.downloader.download(url, Utils.getFilesDir(), "$md5.apk", object: Downloader.OnDownloadListener {
+            override fun onDownloadSuccess(path: String) {
+                Utils.installApk(path)
+                Log.i("download", "success")
+            }
+
+            override fun onDownloading(progress: Int) {
+                info.progress = progress
+                Log.i("download", "progress: $progress")
+                activity?.runOnUiThread {
+                    appListAdapter.notifyDataSetChanged()
+                }
+            }
+
+            override fun onDownloadFailed() {
+                Log.i("download", "fail")
+            }
+        })
     }
 
-    private fun addNasApp(e: Element, name: String) {
-        val href = e.attr("href")
-
-        Log.i("data", "top level href: ${sTopLevel + href}  text: $name")
-
-        val eDoc: Document = Jsoup.connect(sTopLevel + href).get()
-        val lastVer = eDoc.select("table > tbody > tr:nth-child(2) > th > a")
-        val downUrl = lastVer.attr("href")
-        val version = lastVer.text()
-        val url = sTopLevel + downUrl
-        Log.i("data", "version: $version downUrl: $url")
-
+    private fun showProgress(show: Boolean) {
         activity?.runOnUiThread {
-            updateData(NasAppInfo(name, version, url))
-        }
-    }
-
-    private fun getAllInstalledPkg() {
-        Utils.executor.execute {
-            val installedApps = mutableListOf<NasInstalledAppInfo>()
-            val a = activity
-            if (a != null) {
-                val installedPkg = a.packageManager?.getInstalledPackages(0)
-                if (installedPkg != null) {
-                    for (packageInfo in installedPkg) {
-                        if ((packageInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
-                            val packageName = packageInfo.packageName //获取应用包名，可用于卸载和启动应用
-                            if (packageName.startsWith("com.synology")) {
-                                val appName = packageInfo.applicationInfo.loadLabel(a.packageManager) // appname
-                                val versionName = packageInfo.versionName //获取应用版本名
-                                val versionCode = packageInfo.versionCode //获取应用版本号
-                                val appIcon = packageInfo.applicationInfo.loadIcon(a.packageManager) //获取应用图标
-
-                                installedApps.add(NasInstalledAppInfo(appName.toString(), packageName, versionName, versionCode, appIcon))
-
-                                Log.i("xxxx", "appName: $appName, packageName: $packageName, versionName: $versionName, versionCode: $versionCode, appIcon: $appIcon")
-                            }
-                        }
-                    }
-
-                    activity?.runOnUiThread {
-                        updateInstalledAppInfo(installedApps)
-                    }
-                }
+            if (show) {
+                binding.progressBarCyclic.visibility = View.VISIBLE
+            } else {
+                binding.progressBarCyclic.visibility = View.GONE
             }
         }
     }
