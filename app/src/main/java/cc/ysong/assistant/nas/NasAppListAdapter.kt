@@ -1,5 +1,6 @@
 package cc.ysong.assistant.nas
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -57,7 +58,15 @@ class NasAppListAdapter : BaseAdapter() {
             val installedInfo = NasAppMgr.getInstalledApp(appInfo.name)
             if (installedInfo != null) {
                 holder.appIcon?.setImageDrawable(installedInfo.appIcon)
-                holder.appInstallVer?.text = String.format("%s-%03d", installedInfo.verName, installedInfo.verCode)
+
+                if (holder.appInstallVer != null) {
+                    val installedVer = String.format("%s-%03d", installedInfo.verName, installedInfo.verCode)
+                    holder.appInstallVer?.text = installedVer
+
+                    if (installedVer < appInfo.ver) {
+                        holder.appLastVer!!.setTextColor(Color.parseColor("#ff5e9cff"))
+                    }
+                }
             } else {
                 holder.appIcon?.setImageResource(R.mipmap.ic_launcher)
                 holder.appInstallVer?.text = "not installed"
