@@ -14,4 +14,4 @@
 .externalNativeBuild
 .cxx
 local.properties
-app/release
+Assistant-signed.apk*
