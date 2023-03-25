@@ -49,6 +49,8 @@ class MainActivity : AppCompatActivity() {
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_settings -> true
+            R.id.action_timer -> {onTimer(); return true}
+            R.id.action_nas_update -> { onNasUpdate(); return true}
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -57,5 +59,13 @@ class MainActivity : AppCompatActivity() {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         return navController.navigateUp(appBarConfiguration)
                 || super.onSupportNavigateUp()
+    }
+
+    private fun onTimer() {
+        findNavController(R.id.nav_host_fragment_content_main).navigate(R.id.action_FirstFragment_to_SecondFragment)
+    }
+
+    private fun onNasUpdate() {
+        findNavController(R.id.nav_host_fragment_content_main).navigate(R.id.action_SecondFragment_to_FirstFragment)
     }
 }

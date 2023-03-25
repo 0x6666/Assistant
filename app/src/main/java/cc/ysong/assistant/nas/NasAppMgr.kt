@@ -158,9 +158,13 @@ object NasAppMgr {
             "Android-Photos" -> {
                 pkgName = "com.synology.projectkailash.cn"
             }
+            "Android-DSfile" -> {
+                pkgName = "com.synology.DSfile"
+            }
         }
 
         if (pkgName == "") {
+            Log.w("NasAppMgr", "$name not found")
             return null
         }
 
