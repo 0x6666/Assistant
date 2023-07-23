@@ -1,6 +1,7 @@
 package cc.ysong.assistant.utils
 
 import android.os.Environment
+import android.util.Log
 import okhttp3.*
 import java.io.File
 import java.io.FileOutputStream
@@ -10,6 +11,21 @@ import java.io.InputStream
 
 class Downloader {
     private val okHttpClient: OkHttpClient = OkHttpClient()
+
+    fun get(url: String, listener: HttpListener) {
+        val request: Request = Request.Builder().url(url).build()
+        okHttpClient.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("Downloader", "get fail", e)
+                listener.onDownloadFailed()
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                response.body?.string()?.let { listener.onSuccess(it) }
+                response.body?.close()
+            }
+        })
+    }
 
     fun download(url: String, saveDir: String, name: String, listener: OnDownloadListener) {
         val request: Request = Request.Builder().url(url).build()
@@ -61,6 +77,7 @@ class Downloader {
         })
     }
 
+
     @Throws(IOException::class)
     private fun isExistDir(saveDir: String): String {
         return if (File(saveDir).isAbsolute) {
@@ -84,6 +101,12 @@ class Downloader {
 
         fun onDownloading(progress: Int)
 
+        fun onDownloadFailed()
+    }
+
+
+    interface HttpListener {
+        fun onSuccess(data: String)
         fun onDownloadFailed()
     }
 }

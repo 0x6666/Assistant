@@ -32,7 +32,7 @@ class NasFragment : Fragment() {
     ): View {
 
         NasAppMgr.updateAllInstalledNasApp()
-        NasAppMgr.loadNasAppList()
+        NasAppMgr.loadNasAppListV2()
 
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         return binding.root
@@ -60,7 +60,7 @@ class NasFragment : Fragment() {
         _appListAdapter = NasAppListAdapter()
         binding.appList.adapter = appListAdapter
         binding.appList.onItemClickListener = AdapterView.OnItemClickListener { _: AdapterView<*>, view1: View, pos: Int, _: Long ->
-            NasAppMgr.getAppApkUrls(pos, fun(apks: List<NasAppApkUrl>?) {
+            NasAppMgr.getAppApkUrls(pos, fun(apks: String?) {
                 if (apks != null) {
                     if (apks.isNotEmpty()) {
                         val info = NasAppMgr.getNasApp(pos)
@@ -88,27 +88,8 @@ class NasFragment : Fragment() {
         _binding = null
     }
 
-    private fun showAppSel(info: NasAppInfo, apps: List<NasAppApkUrl>, view: View) {
-
-        if (apps.size > 1) {
-            val popup = PopupMenu(requireActivity(), view)
-            for (a in apps) {
-                var tmp = a.name
-                if (tmp.length > 20) {
-                    tmp = "..." + tmp.substring(tmp.length - 20)
-                }
-                popup.menu.add(tmp)
-            }
-            popup.show()
-            popup.setOnMenuItemClickListener { item ->
-                val tmpInfo = apps[item.order]
-                downApk(tmpInfo.url, info)
-                true
-            }
-        } else {
-            val tmpInfo = apps[0]
-            downApk(tmpInfo.url, info)
-        }
+    private fun showAppSel(info: NasAppInfo, apps: String, view: View) {
+         downApk(apps, info)
     }
 
     private fun downApk(url: String, info: NasAppInfo) {

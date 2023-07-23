@@ -55,7 +55,7 @@ class NasAppListAdapter : BaseAdapter() {
         val holder = holder_!!
 
         if (appInfo != null) {
-            val installedInfo = NasAppMgr.getInstalledApp(appInfo.name)
+            val installedInfo = NasAppMgr.getInstalledApp(appInfo.name, appInfo.pkgName)
             if (installedInfo != null) {
                 holder.appIcon?.setImageDrawable(installedInfo.appIcon)
 

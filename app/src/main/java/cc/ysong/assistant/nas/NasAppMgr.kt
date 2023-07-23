@@ -3,7 +3,10 @@ package cc.ysong.assistant.nas
 import android.content.pm.ApplicationInfo
 import android.graphics.drawable.Drawable
 import android.util.Log
+import android.widget.Toast
+import cc.ysong.assistant.utils.Downloader
 import cc.ysong.assistant.utils.Utils
+import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -19,7 +22,9 @@ data class NasInstalledAppInfo(val appName: String,
 data class NasAppApkUrl(val name: String, val url: String)
 
 class NasAppInfo(var name: String, var ver: String, var apkListUrl: String, var progress: Int) {
-    var apkUrls: List<NasAppApkUrl>? = null
+    var pkgName: String? = null
+    var apkUrl: String? = null
+    var v2: Boolean = false
 }
 
 object NasAppMgr {
@@ -28,6 +33,8 @@ object NasAppMgr {
     private var nasAppInfoMap = mutableMapOf<String, NasAppInfo>()
 
     private var installedPackage = mutableMapOf<String, NasInstalledAppInfo>()
+
+    private var svrRoot = "https://assistant.nas.ysong.cc:5001/syno/api"
 
 
     private var listener: UpdateListener? = null
@@ -50,62 +57,68 @@ object NasAppMgr {
         return nasAppLoading.get()
     }
 
-    fun loadNasAppList() {
+    fun loadNasAppListV2() {
         nasAppLoading.set(true)
         listener?.onLoadingNasAppList(nasAppLoading.get())
         Utils.executor.execute {
-            val doc: Document = Jsoup.connect("$topLevel/download/Mobile").get()
-            val appHtml = doc.select("table > tbody > tr > th > a")
+            Utils.downloader.get("$svrRoot/apps", object: Downloader.HttpListener{
+                override fun onSuccess(data: String) {
 
-            for (e in appHtml) {
-                val name = e.text()
-                if (getInstalledApp(name) == null) {
-                    continue
+                    try {
+                        val obj = JSONObject(data)
+                        val datas = obj.getJSONArray("data")
+
+                        for (i in 0 until datas.length()) {
+                            val item = datas.getJSONObject(i)
+
+                            val name = item.getString("Name")
+                            val pkgName = item.getString("PkgName")
+                            val version = item.getString("Version")
+
+                            if (getInstalledApp(name, pkgName) == null) {
+                                continue
+                            }
+
+                            addNasAppV2(name, pkgName, version)
+                        }
+
+                        for (i in 0 until datas.length()) {
+                            val item = datas.getJSONObject(i)
+
+                            val name = item.getString("Name")
+                            val pkgName = item.getString("PkgName")
+                            val version = item.getString("Version")
+                            if (getInstalledApp(name, pkgName) != null) {
+                                continue
+                            }
+
+                            addNasAppV2(name, pkgName, version)
+                        }
+                    } catch (e: Throwable) {
+                        Toast.makeText(Utils.context, "parse apps fail: $e", Toast.LENGTH_SHORT).show();
+                    } finally {
+                        nasAppLoading.set(false)
+                        listener?.onLoadingNasAppList(nasAppLoading.get())
+                    }
                 }
 
-                addNasApp(e, name)
-            }
-
-            for (e in appHtml) {
-                val name = e.text()
-                if (getInstalledApp(name) != null) {
-                    continue
+                override fun onDownloadFailed() {
+                    Toast.makeText(Utils.context, "get apps fail", Toast.LENGTH_SHORT).show();
                 }
-
-                addNasApp(e, name)
-            }
-
-            nasAppLoading.set(false)
-            listener?.onLoadingNasAppList(nasAppLoading.get())
+            })
         }
     }
 
-    fun getAppApkUrls(pos: Int, onLoad: (List<NasAppApkUrl>?) -> Unit) {
+    fun getAppApkUrls(pos: Int, onLoad: (String?) -> Unit) {
         val info = getNasApp(pos)
         if (info == null) {
             onLoad(null)
             return
         }
 
-        if (info.apkUrls != null) {
-            onLoad(info.apkUrls)
+        if (info.apkUrl != null) {
+            onLoad(info.apkUrl)
             return
-        }
-
-        listener?.onLoadingNasAppApkUrls(true)
-
-        Utils.executor.execute {
-            val doc: Document = Jsoup.connect(info.apkListUrl).get()
-            val appHtml = doc.select("table > tbody > tr > th > a")
-
-            val tmpList = mutableListOf<NasAppApkUrl>()
-            for (e in appHtml) {
-                tmpList.add(NasAppApkUrl(e.text(), e.attr("href")))
-            }
-            info.apkUrls = tmpList
-            onLoad(info.apkUrls)
-
-            listener?.onLoadingNasAppApkUrls(false)
         }
     }
 
@@ -130,40 +143,63 @@ object NasAppMgr {
         listener?.onUpdate()
     }
 
+    private fun addNasAppV2(name: String, pkgName: String, version: String) {
+        val url = "$svrRoot/app/$name"
+        Log.i("data", "version: $version downUrl: $url")
+
+        var info: NasAppInfo? = null
+        if (nasAppInfoMap.containsKey(name)) {
+            info = nasAppInfoMap[name]
+        } else {
+            info = NasAppInfo(name, version, url, 0)
+            nasAppInfoMap[name] = info
+            nasAppNameAll.add(name)
+        }
+
+        info?.ver = version
+        info?.apkUrl = url
+        info?.v2 = true
+        info?.pkgName = pkgName
+        listener?.onUpdate()
+    }
+
     private fun updateInstallApps(installedPkg: List<NasInstalledAppInfo>) {
         for (x in installedPkg) {
             installedPackage[x.pkgName] = x
         }
     }
 
-    fun getInstalledApp(name: String): NasInstalledAppInfo? {
+    fun getInstalledApp(name: String, pkgName_: String?): NasInstalledAppInfo? {
 
-        var pkgName = ""
-        when (name) {
-            "Android-Drive" -> {
-                pkgName = "com.synology.dsdrive"
-            }
-            "Android-DSmail" -> {
-                pkgName = "com.synology.dsmail.china"
-            }
-            "Android-ActiveInsight" -> {
-                pkgName = "com.synology.activeinsight.china"
-            }
-            "Android-DSfinder" -> {
-                pkgName = "com.synology.DSfinder"
-            }
-            "Android-DSdownload" -> {
-                pkgName = "com.synology.DSdownload"
-            }
-            "Android-Photos" -> {
-                pkgName = "com.synology.projectkailash.cn"
-            }
-            "Android-DSfile" -> {
-                pkgName = "com.synology.DSfile"
+        var pkgName = pkgName_
+        if (pkgName.isNullOrEmpty()) {
+            when (name) {
+                "Android-Drive" -> {
+                    pkgName = "com.synology.dsdrive"
+                }
+                "Android-DSmail" -> {
+                    pkgName = "com.synology.dsmail.china"
+                }
+                "Android-ActiveInsight" -> {
+                    pkgName = "com.synology.activeinsight.china"
+                }
+                "Android-DSfinder" -> {
+                    pkgName = "com.synology.DSfinder"
+                }
+                "Android-DSdownload" -> {
+                    pkgName = "com.synology.DSdownload"
+                }
+                "Android-Photos" -> {
+                    pkgName = "com.synology.projectkailash.cn"
+                }
+                "Android-DSfile" -> {
+                    pkgName = "com.synology.DSfile"
+                }
             }
         }
 
-        if (pkgName == "") {
+
+        if (pkgName.isNullOrEmpty()) {
             Log.w("NasAppMgr", "$name not found")
             return null
         }
