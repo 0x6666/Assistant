@@ -95,7 +95,9 @@ object NasAppMgr {
                             addNasAppV2(name, pkgName, version)
                         }
                     } catch (e: Throwable) {
-                        Toast.makeText(Utils.context, "parse apps fail: $e", Toast.LENGTH_SHORT).show();
+                        Utils.context.mainExecutor.execute {
+                            Toast.makeText(Utils.context, "parse apps fail: $e", Toast.LENGTH_SHORT).show();
+                        }
                     } finally {
                         nasAppLoading.set(false)
                         listener?.onLoadingNasAppList(nasAppLoading.get())
