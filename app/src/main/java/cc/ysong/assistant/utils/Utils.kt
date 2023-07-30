@@ -29,8 +29,8 @@ object Utils {
         Executors.newFixedThreadPool(10);
     }
 
-    val downloader: Downloader by lazy {
-        Downloader()
+    val http: Http by lazy {
+        Http()
     }
 
     fun getFilesDir() : String {

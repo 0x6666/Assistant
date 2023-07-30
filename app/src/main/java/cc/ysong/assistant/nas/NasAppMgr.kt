@@ -4,12 +4,11 @@ import android.content.pm.ApplicationInfo
 import android.graphics.drawable.Drawable
 import android.util.Log
 import android.widget.Toast
-import cc.ysong.assistant.utils.Downloader
+import cc.ysong.assistant.utils.Http
 import cc.ysong.assistant.utils.Utils
 import org.json.JSONObject
-import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import org.jsoup.nodes.Element
+import java.io.File
+import java.lang.Exception
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class NasInstalledAppInfo(val appName: String,
@@ -19,12 +18,17 @@ data class NasInstalledAppInfo(val appName: String,
                                val appIcon: Drawable
 )
 
-data class NasAppApkUrl(val name: String, val url: String)
-
-class NasAppInfo(var name: String, var ver: String, var apkListUrl: String, var progress: Int) {
+class NasAppInfo(var name: String, var ver: String, var progress: Int) {
     var pkgName: String? = null
     var apkUrl: String? = null
-    var v2: Boolean = false
+
+    fun iconPath() : String{
+        return File(Utils.getFilesDir(), "$name.png").absolutePath
+    }
+
+    fun iconExist(): Boolean {
+        return File(Utils.getFilesDir(), "$name.png").exists()
+    }
 }
 
 object NasAppMgr {
@@ -33,12 +37,9 @@ object NasAppMgr {
     private var nasAppInfoMap = mutableMapOf<String, NasAppInfo>()
 
     private var installedPackage = mutableMapOf<String, NasInstalledAppInfo>()
-
     private var svrRoot = "https://assistant.nas.ysong.cc:5001/syno/api"
 
-
     private var listener: UpdateListener? = null
-    private const val topLevel = "https://archive.synology.com"
     private val nasAppLoading = AtomicBoolean(false)
 
     fun onlineAppCount(): Int {
@@ -57,11 +58,11 @@ object NasAppMgr {
         return nasAppLoading.get()
     }
 
-    fun loadNasAppListV2() {
+    fun loadNasAppList() {
         nasAppLoading.set(true)
         listener?.onLoadingNasAppList(nasAppLoading.get())
         Utils.executor.execute {
-            Utils.downloader.get("$svrRoot/apps", object: Downloader.HttpListener{
+            Utils.http.get("$svrRoot/apps", object: Http.HttpListener{
                 override fun onSuccess(data: String) {
 
                     try {
@@ -79,7 +80,7 @@ object NasAppMgr {
                                 continue
                             }
 
-                            addNasAppV2(name, pkgName, version)
+                            addNasApp(name, pkgName, version)
                         }
 
                         for (i in 0 until datas.length()) {
@@ -92,7 +93,7 @@ object NasAppMgr {
                                 continue
                             }
 
-                            addNasAppV2(name, pkgName, version)
+                            addNasApp(name, pkgName, version)
                         }
                     } catch (e: Throwable) {
                         Utils.context.mainExecutor.execute {
@@ -124,45 +125,25 @@ object NasAppMgr {
         }
     }
 
-
-    private fun addNasApp(e: Element, name: String) {
-        val href = e.attr("href")
-
-        val eDoc: Document = Jsoup.connect(topLevel + href).get()
-        val lastVer = eDoc.select("table > tbody > tr:nth-child(2) > th > a")
-        val downUrl = lastVer.attr("href")
-        val version = lastVer.text()
-        val url = topLevel + downUrl
-        Log.i("data", "version: $version downUrl: $url")
-
-        if (nasAppInfoMap.containsKey(name)) {
-            nasAppInfoMap[name]?.ver = version
-            nasAppInfoMap[name]?.apkListUrl = url
-        } else {
-            nasAppInfoMap[name] = NasAppInfo(name, version, url, 0)
-            nasAppNameAll.add(name)
-        }
-        listener?.onUpdate()
-    }
-
-    private fun addNasAppV2(name: String, pkgName: String, version: String) {
+    private fun addNasApp(name: String, pkgName: String, version: String) {
         val url = "$svrRoot/app/$name"
         Log.i("data", "version: $version downUrl: $url")
 
-        var info: NasAppInfo? = null
+        val info: NasAppInfo?
         if (nasAppInfoMap.containsKey(name)) {
             info = nasAppInfoMap[name]
         } else {
-            info = NasAppInfo(name, version, url, 0)
+            info = NasAppInfo(name, version, 0)
             nasAppInfoMap[name] = info
             nasAppNameAll.add(name)
         }
 
         info?.ver = version
         info?.apkUrl = url
-        info?.v2 = true
         info?.pkgName = pkgName
         listener?.onUpdate()
+
+        downIcon(name)
     }
 
     private fun updateInstallApps(installedPkg: List<NasInstalledAppInfo>) {
@@ -243,6 +224,29 @@ object NasAppMgr {
 
     fun setUpdateListener(ul: UpdateListener?) {
         listener = ul
+    }
+
+    fun downIcon(appName: String) {
+        val f = File(Utils.getFilesDir(), "$appName.png")
+        if (f.exists()) {
+            return
+        }
+
+        val url = "$svrRoot/app/$appName?icon=true"
+
+        Utils.http.download(url, Utils.getFilesDir(), "$appName.png", object: Http.OnDownloadListener {
+            override fun onDownloadSuccess(path: String) {
+
+            }
+
+            override fun onDownloading(progress: Int) {
+            }
+
+            override fun onDownloadFailed(e: Exception) {
+                Log.e("NasAppmgr", "down icon fail", e)
+
+            }
+        })
     }
 
     interface UpdateListener {

@@ -6,16 +6,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
-import androidx.appcompat.widget.PopupMenu
 import androidx.fragment.app.Fragment
 import cc.ysong.assistant.databinding.FragmentFirstBinding
-import cc.ysong.assistant.nas.NasAppApkUrl
 import cc.ysong.assistant.nas.NasAppInfo
 import cc.ysong.assistant.nas.NasAppListAdapter
 import cc.ysong.assistant.nas.NasAppMgr
-import cc.ysong.assistant.utils.Downloader
+import cc.ysong.assistant.utils.Http
 import cc.ysong.assistant.utils.Utils
 import java.io.File
+import java.lang.Exception
 
 
 class NasFragment : Fragment() {
@@ -32,7 +31,7 @@ class NasFragment : Fragment() {
     ): View {
 
         NasAppMgr.updateAllInstalledNasApp()
-        NasAppMgr.loadNasAppListV2()
+        NasAppMgr.loadNasAppList()
 
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         return binding.root
@@ -59,14 +58,14 @@ class NasFragment : Fragment() {
 
         _appListAdapter = NasAppListAdapter()
         binding.appList.adapter = appListAdapter
-        binding.appList.onItemClickListener = AdapterView.OnItemClickListener { _: AdapterView<*>, view1: View, pos: Int, _: Long ->
+        binding.appList.onItemClickListener = AdapterView.OnItemClickListener { _: AdapterView<*>, _: View, pos: Int, _: Long ->
             NasAppMgr.getAppApkUrls(pos, fun(apks: String?) {
                 if (apks != null) {
                     if (apks.isNotEmpty()) {
                         val info = NasAppMgr.getNasApp(pos)
                         if (info != null) {
                             activity?.runOnUiThread {
-                                showAppSel(info, apks, view1)
+                                downApk(apks, info)
                             }
                         }
                     }
@@ -88,10 +87,6 @@ class NasFragment : Fragment() {
         _binding = null
     }
 
-    private fun showAppSel(info: NasAppInfo, apps: String, view: View) {
-         downApk(apps, info)
-    }
-
     private fun downApk(url: String, info: NasAppInfo) {
         val md5 = Utils.md5(url)
         val f = File(Utils.getFilesDir(), "$md5.apk")
@@ -104,7 +99,7 @@ class NasFragment : Fragment() {
             return
         }
 
-        Utils.downloader.download(url, Utils.getFilesDir(), "$md5.apk", object: Downloader.OnDownloadListener {
+        Utils.http.download(url, Utils.getFilesDir(), "$md5.apk", object: Http.OnDownloadListener {
             override fun onDownloadSuccess(path: String) {
                 Utils.installApk(path)
                 Log.i("download", "success")
@@ -118,8 +113,8 @@ class NasFragment : Fragment() {
                 }
             }
 
-            override fun onDownloadFailed() {
-                Log.i("download", "fail")
+            override fun onDownloadFailed(e: Exception) {
+                Log.e("download", "fail", e)
             }
         })
     }

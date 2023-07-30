@@ -1,6 +1,7 @@
 package cc.ysong.assistant.nas
 
 import android.graphics.Color
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +11,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import cc.ysong.assistant.R
 import cc.ysong.assistant.utils.Utils
+import java.io.File
 
 
 class NasAppViewHolder {
@@ -39,7 +41,7 @@ class NasAppListAdapter : BaseAdapter() {
         var convertView = convertView_
         val appInfo: NasAppInfo? = getItem(position)
 
-        var holder_: NasAppViewHolder? = null
+        var holder_: NasAppViewHolder?
         if (convertView == null) {
             convertView = LayoutInflater.from(Utils.context).inflate(R.layout.app_list_item, parent, false)
             holder_ = NasAppViewHolder()
@@ -68,7 +70,12 @@ class NasAppListAdapter : BaseAdapter() {
                     }
                 }
             } else {
-                holder.appIcon?.setImageResource(R.mipmap.ic_launcher)
+                if (appInfo.iconExist()) {
+                    val uri = Uri.fromFile(File(appInfo.iconPath()))
+                    holder.appIcon?.setImageURI(uri)
+                } else {
+                    holder.appIcon?.setImageResource(R.mipmap.ic_launcher)
+                }
                 holder.appInstallVer?.text = "not installed"
             }
             holder.progressBar?.progress = appInfo.progress

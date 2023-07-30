@@ -9,7 +9,7 @@ import java.io.IOException
 import java.io.InputStream
 
 
-class Downloader {
+class Http {
     private val okHttpClient: OkHttpClient = OkHttpClient()
 
     fun get(url: String, listener: HttpListener) {
@@ -32,7 +32,7 @@ class Downloader {
         okHttpClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 // 下载失败
-                listener.onDownloadFailed()
+                listener.onDownloadFailed(e)
             }
 
             @Throws(IOException::class)
@@ -62,15 +62,15 @@ class Downloader {
                     // 下载完成
                     listener.onDownloadSuccess(file.absolutePath)
                 } catch (e: Exception) {
-                    listener.onDownloadFailed()
+                    listener.onDownloadFailed(e)
                 } finally {
                     try {
                         `is`?.close()
-                    } catch (e: IOException) {
+                    } catch (_: IOException) {
                     }
                     try {
                         fos?.close()
-                    } catch (e: IOException) {
+                    } catch (_: IOException) {
                     }
                 }
             }
@@ -101,7 +101,7 @@ class Downloader {
 
         fun onDownloading(progress: Int)
 
-        fun onDownloadFailed()
+        fun onDownloadFailed(e: Exception)
     }
 
 
