@@ -2,6 +2,7 @@ package cc.ysong.assistant.nas
 
 import android.graphics.Color
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -71,8 +72,13 @@ class NasAppListAdapter : BaseAdapter() {
                 }
             } else {
                 if (appInfo.iconExist()) {
-                    val uri = Uri.fromFile(File(appInfo.iconPath()))
-                    holder.appIcon?.setImageURI(uri)
+                    try {
+                        val uri = Uri.fromFile(File(appInfo.iconPath()))
+                        holder.appIcon?.setImageURI(uri)
+                    } catch (t:Throwable) {
+                        Log.e("NasAppListAdapter", "set icon fail", t)
+                        holder.appIcon?.setImageResource(R.mipmap.ic_launcher)
+                    }
                 } else {
                     holder.appIcon?.setImageResource(R.mipmap.ic_launcher)
                 }
