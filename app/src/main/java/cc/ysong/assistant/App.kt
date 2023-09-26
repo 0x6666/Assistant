@@ -5,7 +5,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
-import android.util.Log
+import cc.ysong.assistant.utils.MyCrashHandler
 import cc.ysong.assistant.utils.Utils
 
 
@@ -17,6 +17,8 @@ class App : Application() {
         bindService(Intent(baseContext, AssistantService::class.java), serviceConnection, BIND_AUTO_CREATE)
 
         Utils.init(applicationContext)
+
+        Thread.setDefaultUncaughtExceptionHandler(MyCrashHandler())
     }
 
     var serviceConnection: ServiceConnection = object : ServiceConnection {
