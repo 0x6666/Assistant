@@ -89,7 +89,8 @@ class NasFragment : Fragment() {
 
     private fun downApk(url: String, info: NasAppInfo) {
         val md5 = Utils.md5(url)
-        val f = File(Utils.getFilesDir(), "$md5.apk")
+        var apkPath = "$md5.apk"
+        val f = File(Utils.getFilesDir(), apkPath)
         if (f.exists()) {
             info.progress = 100
             activity?.runOnUiThread {
@@ -99,9 +100,16 @@ class NasFragment : Fragment() {
             return
         }
 
-        Utils.http.download(url, Utils.getFilesDir(), "$md5.apk", object: Http.OnDownloadListener {
+        var tmpApk = "$apkPath.tmp"
+
+        Utils.http.download(url, Utils.getFilesDir(), tmpApk, object: Http.OnDownloadListener {
             override fun onDownloadSuccess(path: String) {
-                Utils.installApk(path)
+                var apkPath = path;
+                if (path.endsWith(".tmp")) {
+                    apkPath = path.removeSuffix(".tmp")
+                    File(path).renameTo(File(apkPath))
+                }
+                Utils.installApk(apkPath)
                 Log.i("download", "success")
             }
 

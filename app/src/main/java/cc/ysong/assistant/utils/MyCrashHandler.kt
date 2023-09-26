@@ -65,12 +65,7 @@ class MyCrashHandler : Thread.UncaughtExceptionHandler {
             var outputStream: FileOutputStream? = null
             try {
                 val inputStream = ByteArrayInputStream(errorMessage.toByteArray())
-                outputStream = FileOutputStream(
-                    File(
-                        file,
-                        System.currentTimeMillis().toString() + ".txt"
-                    )
-                )
+                outputStream = FileOutputStream(File(file,System.currentTimeMillis().toString() + ".txt"))
                 var len = 0
                 val bytes = ByteArray(1024)
                 while (inputStream.read(bytes).also { len = it } != -1) {
