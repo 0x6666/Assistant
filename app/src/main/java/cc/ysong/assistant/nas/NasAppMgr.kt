@@ -37,6 +37,7 @@ object NasAppMgr {
     private var nasAppInfoMap = mutableMapOf<String, NasAppInfo>()
 
     private var installedPackage = mutableMapOf<String, NasInstalledAppInfo>()
+    // private var svrRoot = "http://192.168.31.197:2002/syno/api"
     private var svrRoot = "https://assistant.nas.ysong.cc:5001/syno/api"
 
     private var listener: UpdateListener? = null
@@ -106,7 +107,9 @@ object NasAppMgr {
                 }
 
                 override fun onDownloadFailed() {
-                    Toast.makeText(Utils.context, "get apps fail", Toast.LENGTH_SHORT).show();
+                    Utils.context.mainExecutor.execute {
+                        Toast.makeText(Utils.context, "get apps fail", Toast.LENGTH_SHORT).show();
+                    }
                 }
             })
         }
@@ -199,22 +202,20 @@ object NasAppMgr {
                 for (packageInfo in installedPkg) {
                     if ((packageInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
                         val packageName = packageInfo.packageName //获取应用包名，可用于卸载和启动应用
-                        if (packageName.startsWith("com.synology")) {
-                            val appName = packageInfo.applicationInfo.loadLabel(pm) // appname
-                            val versionName = packageInfo.versionName //获取应用版本名
-                            val versionCode = packageInfo.versionCode //获取应用版本号
-                            val appIcon = packageInfo.applicationInfo.loadIcon(pm) //获取应用图标
+                        val appName = packageInfo.applicationInfo.loadLabel(pm) // appname
+                        val versionName = packageInfo.versionName //获取应用版本名
+                        val versionCode = packageInfo.versionCode //获取应用版本号
+                        val appIcon = packageInfo.applicationInfo.loadIcon(pm) //获取应用图标
 
-                            installedApps.add(
-                                NasInstalledAppInfo(
-                                    appName.toString(),
-                                    packageName,
-                                    versionName,
-                                    versionCode,
-                                    appIcon
-                                )
+                        installedApps.add(
+                            NasInstalledAppInfo(
+                                appName.toString(),
+                                packageName,
+                                versionName,
+                                versionCode,
+                                appIcon
                             )
-                        }
+                        )
                     }
                 }
             }
