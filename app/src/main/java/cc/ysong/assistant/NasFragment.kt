@@ -40,7 +40,8 @@ class NasFragment : Fragment() {
     private val mNasAppUpdateListener = object: NasAppMgr.UpdateListener {
         override fun onUpdate() {
             activity?.runOnUiThread {
-                _appListAdapter?.notifyDataSetChanged()
+                NasAppMgr.sort()
+                appListAdapter.notifyDataSetChanged()
             }
         }
 
@@ -59,16 +60,9 @@ class NasFragment : Fragment() {
         _appListAdapter = NasAppListAdapter()
         binding.appList.adapter = appListAdapter
         binding.appList.onItemClickListener = AdapterView.OnItemClickListener { _: AdapterView<*>, _: View, pos: Int, _: Long ->
-            NasAppMgr.getAppApkUrls(pos, fun(apkUrl: String?) {
-                Utils.executor.execute {
-                    if (!apkUrl.isNullOrEmpty()) {
-                        val info = NasAppMgr.getNasApp(pos)
-                        if (info != null) {
-                            downApk(apkUrl, info)
-                        }
-                    }
-                }
-            })
+            Utils.executor.execute {
+                downApk(NasAppMgr.getNasApp(pos))
+            }
         }
 
         showProgress(NasAppMgr.isNasAppListLoading())
@@ -85,8 +79,13 @@ class NasFragment : Fragment() {
         _binding = null
     }
 
-    private fun downApk(url: String, info: NasAppInfo) {
-        val md5 = Utils.md5(url)
+    private fun downApk(info: NasAppInfo?) {
+        if (info?.apkUrl == null) {
+            Log.e("download", "info is null or url is null")
+            return
+        }
+        val url = info.apkUrl!!
+        val md5 = Utils.md5(url+info.ver)
         val apkPath = "$md5.apk"
         val f = File(Utils.getFilesDir(), apkPath)
         if (f.exists()) {

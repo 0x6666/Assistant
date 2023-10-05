@@ -19,6 +19,7 @@ KEY_PATH=./key/assistant.key
 APP_PATH_UNSIGNED=./app/build/outputs/apk/release/app-release-unsigned.apk
 ${BUILD_TOOL}/apksigner sign --ks ${KEY_PATH} --ks-key-alias assistant_sign --out Assistant-signed.apk ${APP_PATH_UNSIGNED} 
 
+echo upload code: ${code}, name: ${name}
 curl -X POST ${ahost}/syno/api/app/upload \
   -F "file=@/Users/ys/work/song/Assistant/Assistant-signed.apk" \
   -F "name=Assistant" \

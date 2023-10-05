@@ -40,7 +40,7 @@ object NasAppMgr {
     // private var svrRoot = "http://192.168.31.197:2002/syno/api"
     private var svrRoot = "https://assistant.nas.ysong.cc:5001/syno/api"
 
-    private var listener: UpdateListener? = null
+    var listener: UpdateListener? = null
     private val nasAppLoading = AtomicBoolean(false)
 
     fun onlineAppCount(): Int {
@@ -77,7 +77,7 @@ object NasAppMgr {
                             val pkgName = item.getString("PkgName")
                             val version = item.getString("Version")
 
-                            if (getInstalledApp(name, pkgName) == null) {
+                            if (getInstalledApp(pkgName) == null) {
                                 continue
                             }
 
@@ -90,7 +90,7 @@ object NasAppMgr {
                             val name = item.getString("Name")
                             val pkgName = item.getString("PkgName")
                             val version = item.getString("Version")
-                            if (getInstalledApp(name, pkgName) != null) {
+                            if (getInstalledApp(pkgName) != null) {
                                 continue
                             }
 
@@ -133,12 +133,14 @@ object NasAppMgr {
         Log.i("data", "version: $version downUrl: $url")
 
         val info: NasAppInfo?
-        if (nasAppInfoMap.containsKey(name)) {
-            info = nasAppInfoMap[name]
-        } else {
-            info = NasAppInfo(name, version, 0)
-            nasAppInfoMap[name] = info
-            nasAppNameAll.add(name)
+        synchronized(nasAppNameAll) {
+            if (nasAppInfoMap.containsKey(name)) {
+                info = nasAppInfoMap[name]
+            } else {
+                info = NasAppInfo(name, version, 0)
+                nasAppInfoMap[name] = info
+                nasAppNameAll.add(name)
+            }
         }
 
         info?.ver = version
@@ -153,11 +155,23 @@ object NasAppMgr {
         for (x in installedPkg) {
             installedPackage[x.pkgName] = x
         }
+
+        Utils.context.mainExecutor.execute {
+            listener?.onUpdate()
+        }
     }
 
-    fun getInstalledApp(name: String, pkgName: String?): NasInstalledAppInfo? {
+    fun sort() {
+        synchronized(nasAppNameAll) {
+            if (nasAppInfoMap.isNotEmpty()) {
+                nasAppNameAll.sortWith(compareBy({ getInstalledApp(nasAppInfoMap[it]?.pkgName) == null }, { it }))
+            }
+        }
+    }
+
+    fun getInstalledApp(pkgName: String?): NasInstalledAppInfo? {
         if (pkgName.isNullOrEmpty()) {
-            Log.w("NasAppMgr", "$name not found")
+            Log.w("NasAppMgr", "$pkgName not found")
             return null
         }
 
@@ -198,7 +212,7 @@ object NasAppMgr {
         listener = ul
     }
 
-    fun downIcon(appName: String) {
+    private fun downIcon(appName: String) {
         val f = File(Utils.getFilesDir(), "$appName.png")
         if (f.exists()) {
             return
