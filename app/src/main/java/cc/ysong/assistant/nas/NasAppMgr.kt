@@ -155,36 +155,7 @@ object NasAppMgr {
         }
     }
 
-    fun getInstalledApp(name: String, pkgName_: String?): NasInstalledAppInfo? {
-
-        var pkgName = pkgName_
-        if (pkgName.isNullOrEmpty()) {
-            when (name) {
-                "Android-Drive" -> {
-                    pkgName = "com.synology.dsdrive"
-                }
-                "Android-DSmail" -> {
-                    pkgName = "com.synology.dsmail.china"
-                }
-                "Android-ActiveInsight" -> {
-                    pkgName = "com.synology.activeinsight.china"
-                }
-                "Android-DSfinder" -> {
-                    pkgName = "com.synology.DSfinder"
-                }
-                "Android-DSdownload" -> {
-                    pkgName = "com.synology.DSdownload"
-                }
-                "Android-Photos" -> {
-                    pkgName = "com.synology.projectkailash.cn"
-                }
-                "Android-DSfile" -> {
-                    pkgName = "com.synology.DSfile"
-                }
-            }
-        }
-
-
+    fun getInstalledApp(name: String, pkgName: String?): NasInstalledAppInfo? {
         if (pkgName.isNullOrEmpty()) {
             Log.w("NasAppMgr", "$name not found")
             return null
@@ -245,7 +216,6 @@ object NasAppMgr {
 
             override fun onDownloadFailed(e: Exception) {
                 Log.e("NasAppmgr", "down icon fail", e)
-
             }
         })
     }

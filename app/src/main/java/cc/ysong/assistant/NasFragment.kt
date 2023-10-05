@@ -59,14 +59,12 @@ class NasFragment : Fragment() {
         _appListAdapter = NasAppListAdapter()
         binding.appList.adapter = appListAdapter
         binding.appList.onItemClickListener = AdapterView.OnItemClickListener { _: AdapterView<*>, _: View, pos: Int, _: Long ->
-            NasAppMgr.getAppApkUrls(pos, fun(apks: String?) {
-                if (apks != null) {
-                    if (apks.isNotEmpty()) {
+            NasAppMgr.getAppApkUrls(pos, fun(apkUrl: String?) {
+                Utils.executor.execute {
+                    if (!apkUrl.isNullOrEmpty()) {
                         val info = NasAppMgr.getNasApp(pos)
                         if (info != null) {
-                            activity?.runOnUiThread {
-                                downApk(apks, info)
-                            }
+                            downApk(apkUrl, info)
                         }
                     }
                 }
@@ -89,7 +87,7 @@ class NasFragment : Fragment() {
 
     private fun downApk(url: String, info: NasAppInfo) {
         val md5 = Utils.md5(url)
-        var apkPath = "$md5.apk"
+        val apkPath = "$md5.apk"
         val f = File(Utils.getFilesDir(), apkPath)
         if (f.exists()) {
             info.progress = 100
@@ -100,16 +98,16 @@ class NasFragment : Fragment() {
             return
         }
 
-        var tmpApk = "$apkPath.tmp"
+        val tmpApk = "$apkPath.tmp"
 
         Utils.http.download(url, Utils.getFilesDir(), tmpApk, object: Http.OnDownloadListener {
             override fun onDownloadSuccess(path: String) {
-                var apkPath = path;
+                var apkPathTmp = path;
                 if (path.endsWith(".tmp")) {
-                    apkPath = path.removeSuffix(".tmp")
-                    File(path).renameTo(File(apkPath))
+                    apkPathTmp = path.removeSuffix(".tmp")
+                    File(path).renameTo(File(apkPathTmp))
                 }
-                Utils.installApk(apkPath)
+                Utils.installApk(apkPathTmp)
                 Log.i("download", "success")
             }
 

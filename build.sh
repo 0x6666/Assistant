@@ -2,7 +2,7 @@
 
 #  passwd: 123456
 
-code=6
+code=9
 name=1.0.${code}
 
 ahost=https://assistant.nas.ysong.cc:5001

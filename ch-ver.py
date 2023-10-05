@@ -2,24 +2,25 @@
 # -*- coding:utf-8 -*-
 
 import io
+import re
 import argparse
 
-def _replace_file_content(file, old_str, new_str):
+def _replace_file_content(file, pattern, new_str):
     done = False
     res = []
 
-    f1 = io.open(file, "r", encoding="utf-8")
-    lines = f1.readlines()
-    for line in lines:
-        newLine = line.replace(old_str, new_str)
-        res.append(newLine)
-        if newLine != line:
-            done = True
-    f1.close()
+    with io.open(file, "r", encoding="utf-8") as f1:
+        lines = f1.readlines()
+        for line in lines:
+            newLine = re.sub(pattern, new_str, line)
+            res.append(newLine)
+            if newLine != line:
+                done = True
 
     if done:
-        f1 = io.open(file, "w", encoding="utf-8")
-        f1.writelines(res)
+        with io.open(file, "w", encoding="utf-8") as f1:
+            f1.writelines(res)
+
     return done
 
 if __name__ == '__main__':
@@ -31,7 +32,8 @@ if __name__ == '__main__':
     code = args.code
     name = args.name
 
-    _replace_file_content('app/build.gradle', 'versionCode 4', f'versionCode {code}')
-    _replace_file_content('app/build.gradle', 'versionName "1.0.4"', f'versionName "{name}"')
-    _replace_file_content('app/src/main/AndroidManifest.xml', 'android:versionCode="4"', f'android:versionCode="{code}"')
-    _replace_file_content('app/src/main/AndroidManifest.xml', 'android:versionName="1.0.4"', f'android:versionName="{name}"')
+    _replace_file_content('app/src/main/AndroidManifest.xml', r'android:versionName="[\d.]+"', f'android:versionName="{name}"')
+    _replace_file_content('app/src/main/AndroidManifest.xml', r'android:versionCode="[\d]+"', f'android:versionCode="{code}"')
+    _replace_file_content('app/build.gradle', r'versionCode [\d]+', f'versionCode {code}')
+    _replace_file_content('app/build.gradle', r'versionName "[\d.]+"', f'versionName "{name}"')
+
