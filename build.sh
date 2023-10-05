@@ -2,13 +2,14 @@
 
 #  passwd: 123456
 
-code=9
-name=1.0.${code}
-
 ahost=https://assistant.nas.ysong.cc:5001
 # ahost=http://127.0.0.1:2002
 
-python3 ch-ver.py -c ${code} -n ${name}
+code=$(python3 ch-ver.py lastVersion -u ${ahost})
+code=$((code + 1))
+name=1.0.${code}
+
+python3 ch-ver.py changeVersion -c ${code} -n ${name}
 
 BUILD_TOOL=/Users/Shared/Android/sdk/build-tools/31.0.0
 
