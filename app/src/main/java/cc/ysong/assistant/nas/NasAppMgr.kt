@@ -168,18 +168,22 @@ object NasAppMgr {
             val installedPkg = pm?.getInstalledPackages(0)
             if (installedPkg != null) {
                 for (packageInfo in installedPkg) {
-                    if ((packageInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
+                    val applicationInfo = packageInfo.applicationInfo
+                    if (applicationInfo == null) {
+                        continue
+                    }
+                    if ((applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
                         val packageName = packageInfo.packageName //获取应用包名，可用于卸载和启动应用
-                        val appName = packageInfo.applicationInfo.loadLabel(pm) // appname
+                        val appName = applicationInfo.loadLabel(pm) // appname
                         val versionName = packageInfo.versionName //获取应用版本名
                         val versionCode = packageInfo.versionCode //获取应用版本号
-                        val appIcon = packageInfo.applicationInfo.loadIcon(pm) //获取应用图标
+                        val appIcon = applicationInfo.loadIcon(pm) //获取应用图标
 
                         installedApps.add(
                             NasInstalledAppInfo(
                                 appName.toString(),
                                 packageName,
-                                versionName,
+                                versionName ?: "",
                                 versionCode,
                                 appIcon
                             )
