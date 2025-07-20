@@ -77,23 +77,6 @@ object NasAppMgr {
                             val pkgName = item.getString("PkgName")
                             val version = item.getString("Version")
 
-                            if (getInstalledApp(pkgName) == null) {
-                                continue
-                            }
-
-                            addNasApp(name, pkgName, version)
-                        }
-
-                        for (i in 0 until datas.length()) {
-                            val item = datas.getJSONObject(i)
-
-                            val name = item.getString("Name")
-                            val pkgName = item.getString("PkgName")
-                            val version = item.getString("Version")
-                            if (getInstalledApp(pkgName) != null) {
-                                continue
-                            }
-
                             addNasApp(name, pkgName, version)
                         }
                     } catch (e: Throwable) {
